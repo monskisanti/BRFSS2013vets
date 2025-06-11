@@ -1,0 +1,153 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+* * *
+
+## Part 1: Data
+
+The following Exploratory Data Analysis focuses on The Behavioral Risk Factor Surveillance System (BRFSS), which is a “cross sectional telephone survey that state health departments conduct monthly over landline telephones and cellular telephones with a standardized questionnaire” (CDC, 2013, p.3). 
+
+The questionnaire is comprised of an annual standard core, a biannual rotating core, optional modules and state-added questions.  “The BRFSS uses two samples: one for landline telephone respondents and one for cellular telephone respondents” (CDC, 2013, P.6). For landline respondents a household sample is conducted, while cellular telephone respondents are weighted as single adult households.
+For Landline sampling Disproportionate stratified sampling (DSS) has been used since 2003. “DSS draws telephone numbers from two strata (lists) that are based on the presumed density of known telephone household numbers. In this design, telephone numbers are classified into strata that are either high density… [] or medium density to yield residential telephone numbers. Telephone numbers in the high density strarum are sampled at the highest rate” (CDC, 2013, p. 7). CDC argues that DSS sampling telephone numbers is more efficient than simple random sampling (SRS), while this may stand true, it implies that the study cannot be generalizable, however it might be useful for making causal conclusions.
+
+As for the cellular telephone sample, the respondents are randomly selected “from a sampling frame of confirmed cellular area code and prefix combinations” (CDC, 2013, p. 8), this yields approximately 20% of total respondents.
+As for sample size. The BRFSS goal is to reach at least 4,000 interviews per state each year. According to the CDC “Factors influencing sample size include the cost involved in data collection for a larger sample and the states need for obtaining estimates for subpopulations within states” (2013, p. 7), this might mean that for some states with large and diverse population the results might not be representative of various minorities within the population as a whole, akin to other conditions and predicaments.
+
+To avoid bias in sampling, the CDC makes use of weighting protocols which ensure that data are representative of the population “on several demographic characteristics including sex, age, race, education, marital status, home ownership, phone ownership and sub-state region. Because ranking considers each of the weighting variables separately, there is less likelihood that categories of age and/or race would collapse than under previous used with the new weighting methods. Ranking weighting incorporates the known characteristics of the population into the sample. If the sample is disproportionately females, ranking will adjust the responses of females in the sample to accurately represent the proportion of females in the population.” (2013, p. 8). This is due to an iterative process in which each demographic factor is introduced in a sequence. The sequence of factors may be multiple times before the sample is found to accurately represent the population on all factors under consideration (CDC, 2013).
+
+* * *
+
+## Part 2: Research questions
+
+In the following report three questions are explored related to veterans in the United States of America and their use of medicare, the first question will explore the concentration of veterans in each state, the following question relates veterans from each state to their use of medicare; finally, the third question is about the relationship between cost of medicine and use of medicare.
+
+- **Research question 1:**
+Which country has the highest concentration of vets?
+
+- **Research question 2:**
+What is the relationship between veterans from each state and use of medicare?
+
+- **Research question 3:**
+What is the relationship between having medicare and not being able to get Medicine due to cost as a veteran?
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Research question 1:**
+
+Which country has the highest concentration of vets?
+
+```{r plot-wider, fig.width=10, fig.height=10}
+### filters out information from veterans
+vets <- brfss2013 %>%
+     filter(veteran3 == "Yes")
+### creates a numerical list of veterans by state
+vets_state <- brfss2013 %>%
+     group_by(X_state) %>%
+     summarise(veteran3 = n())
+### cleans up two extra rows
+vets_state <- subset(vets_state, veteran3 > 2)
+### shows it in descending order
+vets_state %>%
+  mutate(percentage = veteran3 / sum(veteran3)) %>%
+  arrange(desc(veteran3))
+### Creates a plot of concentration
+ggplot(vets_state,aes(x = reorder(X_state, veteran3), y= veteran3)) + 
+  geom_bar(stat="identity",fill="Red", width = .7) +
+  geom_text(aes(label = veteran3), hjust = 1) + 
+  coord_flip() +
+  ylab("Percentage") + xlab("States")
+
+```
+
+As we can see, the State which has the most veterans is Florida with 33,668, followed by Kansas with 23,282 and Nebraska with 17,139, in percentage the states mentioned represent 6.8%, 4.7% and 3.4% respectively. While Guam, being the country with the least number of veterans (1,897), represents less than 1% of total veteran population surveyed. 
+
+Interestingly, in 2013 (the year the survey was conducted) Florida ranked in 4th place as the state with the largest population (19,6521, 127), this would mean that Florida has a high concentration of veterans. However Kansas might have a higher concentration of veterans in average per person since its population is significantly smaller (2,893,957) compared to Florida. It would be interesting to explore the possible causes for this scenario in further research. While Guam, being an Island has a population of 165,966; this would mean that approximately, 1 in 100 residents in the Island are veterans which would mean that there is a higher concentration of veterans per capita than in the rest of the states.
+
+**Research question 2:**
+
+What is the relationship between veterans from each state and use of medicare?
+
+Across the survey, around 62% of veterans have medicare while the rest claim not to have, there exist a large number of veterans to which this question does not apply, as it will be shown further.
+
+```{r}
+### Proportion table of total veterans with or without medicare
+vets_state_medicare <- vets %>%
+      select(X_state, medicare)
+
+table(vets_state_medicare$medicare)
+
+prop.table(table(vets_state_medicare$medicare))
+```
+
+
+In the following graphic, the proportions of vets with, without and NA medicare are shown, the decision to include the NA responses is because there are other health insurance coverage options that are not medicare, but those are not the focus of the present research.
+
+```{r fig.width= 10, fig.height=10}
+### bar plots the veterans from each state and if they have medicare
+ggplot(vets, aes(fill = medicare, y = veteran3, x= X_state)) +
+     geom_bar(position = "stack", stat = "identity") +
+     coord_flip()
+### Summary of veterans from each state that have medicare
+vets_state_medicare %>%
+    group_by(X_state) %>%
+    select(X_state, medicare) %>%
+    table()
+```
+
+The graphed results yield an interesting set of results, first of all is Florida which has the highest number of veterans with medicare as well as veterans without medicare, this is probably due to the large amounts of veterans residing in the state, however, some states like Kansas responded with NA, several other states present the same quality which will be explored further. 
+The 5 states with the largest number of vets with medicare are Florida (3,165), Nebraska (1,266), Maryland (1,143), Washington (938) and South Carolina (911).
+
+Something to note are the states with a grey bar, this means that no veteran surveyed found a "Yes" and "No" applicable to their situation, these states are, Arkansas, Colorado, Hawaii, Illinois, Kansas, Maine, Mississippi, Missouri, New Hampshire, Oklahoma, Pennsylvania, South Dakota, Texas, Wyoming and Guam (in no particular order). The reason of it is unknown to the scope of this research but further investigation is required.
+
+**Research question 3:**
+What is the relationship between having medicare and not being able to get Medicine due to cost as a veteran?
+
+The third question pertains to affordability of medicine and its relation to medicare, the results where unexpected. Only 4.4% (1,069) of the veterans that have medicare have not been able to afford the cost of a medicine while the rest (24,202) were able to afford them. Among the people that does not have medicare the percentages are similar, 7.7% (1,100) have not been able to afford the cost of a medicine while the rest of the 92.2% (14,151) have been able to afford the medicine, we observe a similar behavior among the veterans to which the question of medicare was not applicable to them.
+
+```{r}
+###Table of medicare and medcost
+vets %>%
+     group_by(medicare) %>%
+     select(medicare, medcost) %>%
+     table()
+### Stacked barplot medicare and medcost
+ggplot(vets, aes(fill = medcost, y = medcost, x=medicare)) +
+      geom_bar(position = "stack", stat = "identity")
+```
+
+This indicates that the majority of veterans can afford most forms of treatment, however it is important to asses the situation of the veterans that have not been able to afford treatment, this could be the result of multiple factors like, cost of treatment due to severity of medical condition, issues with the operation and coverage of health insurance and the lack of opportunity to afford health insurance, a focused study of the veterans that cannot afford the cost of medicine should be conducted.
+
+## Part 4: Conclusions
+
+The present Exploratory Data Analysis which wrangles with a data set from the BRFSS conducted in 2013 focused on veterans across the United States of America and focused on 3 key questions:
+
+- Which country has the highest concentration of vets?
+- What is the relationship between veterans from each state and use of medicare?
+- What is the relationship between having medicare and not being able to get Medicine due to cost as a veteran?
+
+The results show that the states with the higher concentration of veterans are Florida, Kansas, Nebraska, Massachusetts and Minnesota, while, comprehensively, the states with the least amount of veterans are Guam, Arizona and Alaska, due to low population. Among these veterans, 62% claim that they have medicare and the highest amount of veterans with medicare can be found in Florida. There exist a number of stateswhich seem to not have medicare as a service according to the data explored, these are the following: Arkansas, Colorado, Hawaii, Illinois, Kansas, Maine, Mississippi, Missouri, New Hampshire, Oklahoma, Pennsylvania, South Dakota, Texas, Wyoming and Guam.
+
+The number of veterans that responded to having medicare are significantly lower than the number of total veterans counted, the reasons are unknown and out of the scope of the present research, throughout this Exploratory Data Analysis a couple of questions have been raised pertaining healthcare accessibility for veterans, I encourage the researchers that read this report to continue with the analysis.
